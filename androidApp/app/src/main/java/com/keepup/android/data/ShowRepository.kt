@@ -119,6 +119,26 @@ class ShowRepository(
     private fun TmdbMovieDetail.toShow(seed: Show): Show {
         val actors = credits?.cast?.take(5)?.joinToString { it.name }
         val director = credits?.crew?.firstOrNull { it.job == "Director" }?.name
+        val trailerKey = videos?.results?.firstOrNull { 
+            it.type == "Trailer" && it.site == "YouTube" && it.official == true 
+        }?.key
+        val castMembers = credits?.cast?.take(20)?.map { cast ->
+            com.keepup.android.data.CastMember(
+                id = cast.id,
+                name = cast.name,
+                character = cast.character,
+                profilePath = cast.profilePath,
+                order = cast.order
+            )
+        }
+        val providers = watchProviders?.results?.us?.flatrate?.map {
+            com.keepup.android.data.WatchProvider(
+                id = it.providerId,
+                name = it.providerName,
+                logoPath = it.logoPath
+            )
+        }
+        
         return seed.copy(
             title = title,
             plot = overview,
@@ -128,14 +148,49 @@ class ShowRepository(
             rating = voteAverage?.let { String.format("%.1f", it) },
             actors = actors,
             director = director,
+            trailerKey = trailerKey,
+            castMembers = castMembers,
+            watchProviders = providers,
             posterUrl = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
-            backdropUrl = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" }
+            backdropUrl = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" },
+            theatricalReleaseDate = releaseDate
         )
     }
 
     private fun TmdbTvDetail.toShow(seed: Show): Show {
         val actors = credits?.cast?.take(5)?.joinToString { it.name }
         val creators = createdBy?.joinToString { it.name }
+        val trailerKey = videos?.results?.firstOrNull { 
+            it.type == "Trailer" && it.site == "YouTube" && it.official == true 
+        }?.key
+        val castMembers = credits?.cast?.take(20)?.map { cast ->
+            com.keepup.android.data.CastMember(
+                id = cast.id,
+                name = cast.name,
+                character = cast.character,
+                profilePath = cast.profilePath,
+                order = cast.order
+            )
+        }
+        val providers = watchProviders?.results?.us?.flatrate?.map {
+            com.keepup.android.data.WatchProvider(
+                id = it.providerId,
+                name = it.providerName,
+                logoPath = it.logoPath
+            )
+        }
+        val seasonInfoList = seasons?.map { season ->
+            com.keepup.android.data.SeasonInfo(
+                id = season.id,
+                seasonNumber = season.seasonNumber,
+                name = season.name,
+                overview = season.overview,
+                posterPath = season.posterPath,
+                airDate = season.airDate,
+                episodeCount = season.episodeCount
+            )
+        }
+        
         return seed.copy(
             title = name,
             plot = overview,
@@ -145,8 +200,17 @@ class ShowRepository(
             rating = voteAverage?.let { String.format("%.1f", it) },
             actors = actors,
             director = creators,
+            trailerKey = trailerKey,
+            castMembers = castMembers,
+            watchProviders = providers,
             posterUrl = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
             backdropUrl = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" },
+            tmdbStatus = status,
+            lastEpisodeAirDate = lastEpisodeToAir?.airDate,
+            nextEpisodeAirDate = nextEpisodeToAir?.airDate,
+            totalSeasons = numberOfSeasons,
+            totalEpisodes = numberOfEpisodes,
+            seasons = seasonInfoList,
             aiStatus = status,
             aiSummary = nextEpisodeToAir?.let { ep ->
                 val air = ep.airDate ?: "TBD"
@@ -154,4 +218,26 @@ class ShowRepository(
             }
         )
     }
+    
+    suspend fun fetchSeasonDetails(showId: String, seasonNumber: Int): List<com.keepup.android.data.EpisodeInfo> = 
+        withContext(dispatcher) {
+            try {
+                val seasonDetail = service.tvSeason(showId, seasonNumber)
+                seasonDetail.episodes?.map { episode ->
+                    com.keepup.android.data.EpisodeInfo(
+                        id = episode.id,
+                        episodeNumber = episode.episodeNumber ?: 0,
+                        seasonNumber = episode.seasonNumber ?: seasonNumber,
+                        name = episode.name ?: "",
+                        overview = episode.overview,
+                        stillPath = episode.stillPath,
+                        airDate = episode.airDate,
+                        runtime = episode.runtime,
+                        voteAverage = episode.voteAverage?.toFloat()
+                    )
+                } ?: emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
 }

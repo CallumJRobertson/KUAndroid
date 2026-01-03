@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.keepup.android.data.Show
@@ -15,14 +17,27 @@ import com.keepup.android.ui.components.ShowCard
 fun UpdatesScreen(
     updates: List<Show>,
     onRefresh: () -> Unit,
-    onSelect: (Show) -> Unit
+    onSelect: (Show) -> Unit,
+    isLoading: Boolean = false
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Button(onClick = onRefresh) { Text("Refresh Updates") }
+        Button(onClick = onRefresh, enabled = !isLoading) { 
+            Text("Refresh Updates") 
+        }
         Spacer(Modifier.height(12.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(updates) { show ->
-                ShowCard(show = show) { onSelect(show) }
+        
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(updates) { show ->
+                    ShowCard(show = show) { onSelect(show) }
+                }
             }
         }
     }
